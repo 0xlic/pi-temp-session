@@ -1,0 +1,10 @@
+{
+  "name": "pi-temp-session",
+  "version": "0.1.0",
+  "description": "Create timestamped working directories and switch Pi sessions",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "peerDependencies": { "@earendil-works/pi-coding-agent": ">=1.1.0" },
+  "pi": { "extensions": ["./index.ts"] }
+}
