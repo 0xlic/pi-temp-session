@@ -18,14 +18,14 @@ pi install git:github.com/0xlic/pi-temp-session
 
 ```sh
 pi -e /绝对路径/pi-temp-session/index.ts
-pi -e /绝对路径/pi-temp-session/index.ts --g
+pi -e /绝对路径/pi-temp-session/index.ts --t
 ```
 
 ## 使用
 
 - `/temp-session`：创建目录并切换到空白会话，原会话历史不复制、不删除。
 - `/temp-session config`：设置或修改根目录，只更新配置，不切换会话。
-- `pi --g`：启动后自动创建并切换到临时会话。
+- `pi --t`：启动后自动创建并切换到临时会话。
 
 首次使用会要求输入根目录，**没有默认目录，也不允许空输入**。
 支持 `~`、`~/…` 和相对路径；相对路径按当前 Pi 工作目录解析。
@@ -53,10 +53,10 @@ Pi 会按会话头的工作目录重建工具、系统提示、项目配置及�
 为了让 Pi 能打开空白会话，扩展会提前落盘一个仅含会话头的 JSONL 文件；
 没有添加伪造的聊天消息。目录和会话不会退出即删除，可以通过 Pi 恢复。
 
-`--g` 当前支持交互终端和 RPC，**不支持 `--print` / JSON 一次性模式**。
+`--t` 当前支持交互终端和 RPC，**不支持 `--print` / JSON 一次性模式**。
 这些模式的生命周期不等待延迟的启动命令，无法保证第一条提示在切换后执行，
 所以不会冒险在错误目录运行。RPC 客户端应等待“已切换到”通知后发送提示。
-`--g` 不能与 `--continue`、`--resume`、`--session`、`--session-id`、
+`--t` 不能与 `--continue`、`--resume`、`--session`、`--session-id`、
 `--fork`、`--no-session` 同时使用；检测到冲突会提示错误并跳过自动创建。
 由于 Pi 会捕获扩展错误，此时 Pi 本身可能仍继续运行。
 

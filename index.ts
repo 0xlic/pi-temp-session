@@ -10,7 +10,7 @@ export default function tempSession(pi: ExtensionAPI) {
   let startupTimer: ReturnType<typeof setTimeout> | undefined;
   const pendingInputs: InputEvent[] = [];
 
-  pi.registerFlag("g", {
+  pi.registerFlag("t", {
     description: "Create a timestamped directory and start a new temporary session",
     type: "boolean",
     default: false,
@@ -120,13 +120,13 @@ export default function tempSession(pi: ExtensionAPI) {
   });
 
   pi.on("session_start", (event, ctx) => {
-    if (event.reason !== "startup" || !pi.getFlag("g")) return;
+    if (event.reason !== "startup" || !pi.getFlag("t")) return;
     const conflict = startupConflict(process.argv.slice(2));
-    if (conflict) throw new Error(`--g 不能与 ${conflict} 同时使用。`);
+    if (conflict) throw new Error(`--t 不能与 ${conflict} 同时使用。`);
     // Session replacement is command-only. Dispatch after session_start returns,
     // not while Pi is awaiting lifecycle handlers during runtime initialization.
     if (ctx.mode !== "tui" && ctx.mode !== "rpc") {
-      throw new Error("--g 当前支持交互模式和 RPC 模式，不支持 --print / JSON 模式。");
+      throw new Error("--t 当前支持交互模式和 RPC 模式，不支持 --print / JSON 模式。");
     }
     startupPending = true;
     startupTimer = setTimeout(() => {

@@ -13,7 +13,7 @@ async function launch(t, { flag = false, configured = true } = {}) {
   const root = join(sandbox, 'scratch');
   await mkdir(agent);
   if (configured) await writeFile(join(agent, 'temp-session.json'), JSON.stringify({ version: 1, root }));
-  const child = spawn(process.env.PI_TEST_CLI || 'pi', ['--offline', '-ne', '-e', resolve('index.ts'), '--mode', 'rpc', ...(flag ? ['--g'] : [])], {
+  const child = spawn(process.env.PI_TEST_CLI || 'pi', ['--offline', '-ne', '-e', resolve('index.ts'), '--mode', 'rpc', ...(flag ? ['--t'] : [])], {
     cwd: sandbox,
     env: { ...process.env, PI_CODING_AGENT_DIR: agent },
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -56,7 +56,7 @@ async function launch(t, { flag = false, configured = true } = {}) {
 }
 
 for (const flag of [false, true]) {
-  test(`real RPC: ${flag ? '--g' : '/temp-session'} rebuilds cwd and keeps history empty`, { skip: !integration, timeout: 25000 }, async (t) => {
+  test(`real RPC: ${flag ? '--t' : '/temp-session'} rebuilds cwd and keeps history empty`, { skip: !integration, timeout: 25000 }, async (t) => {
     const rpc = await launch(t, { flag });
     if (!flag) await rpc.request('prompt', { message: '/temp-session' });
     await rpc.wait((event) => event.type === 'extension_ui_request' && event.message?.startsWith('已切换到：'));
@@ -71,7 +71,7 @@ for (const flag of [false, true]) {
   });
 }
 
-test('real RPC: --g first use configures before switching', { skip: !integration, timeout: 25000 }, async (t) => {
+test('real RPC: --t first use configures before switching', { skip: !integration, timeout: 25000 }, async (t) => {
   const rpc = await launch(t, { flag: true, configured: false });
   const input = await rpc.wait((event) => event.method === 'input');
   assert.equal(input.placeholder, undefined);

@@ -58,7 +58,7 @@ test('same-named file fails immediately; invalid root fails', async (t) => {
 });
 
 test('startup rejects session selection but ignores prompt text after --', () => {
-  assert.equal(startupConflict(['--g', '--session=abc']), '--session=abc');
-  assert.equal(startupConflict(['--g', '-c']), '-c');
-  assert.equal(startupConflict(['--g', '--', '--session']), undefined);
+  assert.equal(startupConflict(['--t', '--session=abc']), '--session=abc');
+  assert.equal(startupConflict(['--t', '-c']), '-c');
+  assert.equal(startupConflict(['--t', '--', '--session']), undefined);
 });
