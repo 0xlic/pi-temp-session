@@ -28,23 +28,23 @@ pi -e /绝对路径/pi-temp-session/index.ts --t
 - `/temp-session clean`：选择范围并确认，删除临时工作区及其中的会话记录。
 
 无需配置根目录，也没有首次使用向导。工作区固定保存在 Pi agent 目录下的
-`temp-sessions`，与默认历史目录 `sessions` 同级：
+`pi-temp-sessions`，便于辨认插件归属，与默认历史目录 `sessions` 同级：
 
 ```text
-~/.pi/agent/temp-sessions/YYYY-MM-DD_HH-mm-ss/
+~/.pi/agent/pi-temp-sessions/YYYY-MM-DD_HH-mm-ss/
 ```
 
 兼容 Windows，默认位置是：
 
 ```text
-%USERPROFILE%\.pi\agent\temp-sessions\YYYY-MM-DD_HH-mm-ss\
+%USERPROFILE%\.pi\agent\pi-temp-sessions\YYYY-MM-DD_HH-mm-ss\
 ```
 
 通过 Pi 的 `getAgentDir()` 获取用户目录，使用原生路径拼接，不依赖 Unix 路径。
-如果设置了 `PI_CODING_AGENT_DIR`，工作区放在该目录的 `temp-sessions` 下。
+如果设置了 `PI_CODING_AGENT_DIR`，工作区放在该目录的 `pi-temp-sessions` 下。
 时间目录名不含 Windows 禁止的冒号。
 旧版的 `temp-session.json` 不再读取或写入，`/temp-session config` 已取消；
-旧配置、旧工作区和历史会话不会自动迁移或删除。
+旧配置、旧工作区（包括此前的 `temp-sessions` 目录）和历史会话不会自动迁移或删除。
 
 日期和时间合并在同一级目录中，历史会话只显示目录名时也能辨认完整时间。
 仅新会话使用此格式，已有两级目录和历史会话不会迁移或修改。
@@ -63,7 +63,7 @@ pi -e /绝对路径/pi-temp-session/index.ts --t
 删除包含工作区中的**所有文件**以及 `.pi/sessions` 中的会话记录，无法恢复。
 取消选择或确认不会删除任何内容。
 
-只清理固定 `temp-sessions` 根目录的直接子目录，并要求目录名是有效的
+只清理固定 `pi-temp-sessions` 根目录的直接子目录，并要求目录名是有效的
 `YYYY-MM-DD_HH-mm-ss`。无关目录、文件和符号链接不会清理；
 当前 Pi 的工作目录或会话记录所在的工作区也会跳过。
 无法识别其他 Pi 进程正在使用的工作区，清理前请先关闭相关会话。
@@ -76,7 +76,7 @@ Pi 会按会话头的工作目录重建工具、系统提示、项目配置及�
 项目资源仍遵循 Pi 的信任机制。新临时会话的记录保存在工作区内：
 
 ```text
-~/.pi/agent/temp-sessions/YYYY-MM-DD_HH-mm-ss/.pi/sessions/<会话文件>.jsonl
+~/.pi/agent/pi-temp-sessions/YYYY-MM-DD_HH-mm-ss/.pi/sessions/<会话文件>.jsonl
 ```
 
 工作区和会话记录可一起管理，删除整个工作区也会删除其中的会话记录。

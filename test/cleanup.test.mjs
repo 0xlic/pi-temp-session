@@ -8,7 +8,7 @@ import { cleanupRanges, executeCleanup, parseDirectoryTimestamp, planCleanup, ti
 async function setup(t) {
   const sandbox = await mkdtemp(join(tmpdir(), 'pi-temp-clean-'));
   t.after(() => rm(sandbox, { recursive: true, force: true }));
-  const root = join(sandbox, 'temp-sessions');
+  const root = join(sandbox, 'pi-temp-sessions');
   await mkdir(root);
   const now = new Date(2026, 9, 12, 12, 0, 0);
   const add = async (ageDays) => {

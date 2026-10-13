@@ -11,9 +11,9 @@ async function temporary(t) {
   return path;
 }
 
-test('creates a missing agent temp-sessions root using native paths', async (t) => {
+test('creates a missing agent pi-temp-sessions root using native paths', async (t) => {
   const dir = await temporary(t);
-  const root = join(dir, '.pi', 'agent', 'temp-sessions');
+  const root = join(dir, '.pi', 'agent', 'pi-temp-sessions');
   await validateRoot(root);
   const path = await createDirectory(root, { now: () => new Date(2026, 0, 1, 12, 0, 0) });
   assert.equal(path, join(root, '2026-01-01_12-00-00'));

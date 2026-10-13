@@ -4,7 +4,7 @@ import { getAgentDir, SessionManager, type ExtensionAPI, type ExtensionCommandCo
 import { cleanupRanges, createDirectory, executeCleanup, materializeSession, planCleanup, startupConflict, validateRoot } from "./lib.mjs";
 
 export default function tempSession(pi: ExtensionAPI) {
-  const root = join(getAgentDir(), "temp-sessions");
+  const root = join(getAgentDir(), "pi-temp-sessions");
   let busy = false;
   let startupPending = false;
   let startupTimer: ReturnType<typeof setTimeout> | undefined;

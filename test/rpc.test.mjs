@@ -10,7 +10,7 @@ const integration = process.env.PI_TEMP_INTEGRATION === '1';
 async function launch(t, { flag = false, legacyConfig } = {}) {
   const sandbox = await mkdtemp(join(tmpdir(), 'pi-temp-rpc-'));
   const agent = join(sandbox, 'agent');
-  const root = join(agent, 'temp-sessions');
+  const root = join(agent, 'pi-temp-sessions');
   await mkdir(agent);
   if (legacyConfig !== undefined) await writeFile(join(agent, 'temp-session.json'), legacyConfig);
   const child = spawn(process.env.PI_TEST_CLI || 'pi', ['--offline', '-ne', '-e', resolve('index.ts'), '--mode', 'rpc', ...(flag ? ['--t'] : [])], {
