@@ -49,6 +49,7 @@ export default function tempSession(pi: ExtensionAPI) {
     busy = true;
     let directory: string | undefined;
     let sessionFile: string | undefined;
+    let sessionDir: string | undefined;
     let switched = false;
     let replacementStarted = false;
     // Keep the notifier only for pre-replacement errors. Once switched, use the
@@ -69,7 +70,8 @@ export default function tempSession(pi: ExtensionAPI) {
       if (!root) return;
       await validateRoot(root);
       directory = await createDirectory(root);
-      sessionFile = await materializeSession(SessionManager.create(directory));
+      sessionDir = join(directory, ".pi", "sessions");
+      sessionFile = await materializeSession(SessionManager.create(directory, sessionDir));
       const target = directory;
       replacementStarted = true;
       const result = await ctx.switchSession(sessionFile, {
@@ -96,7 +98,11 @@ export default function tempSession(pi: ExtensionAPI) {
       if (!switched && !replacementStarted) {
         if (sessionFile) await rm(sessionFile, { force: true });
         // Never recursively delete a working directory, even on failure.
-        if (directory) await rmdir(directory).catch(() => {});
+        if (sessionDir) await rmdir(sessionDir).catch(() => {});
+        if (directory) {
+          await rmdir(join(directory, ".pi")).catch(() => {});
+          await rmdir(directory).catch(() => {});
+        }
       }
       if (startupPending && !switched) {
         startupPending = false;

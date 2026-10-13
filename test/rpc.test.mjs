@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { access, mkdtemp, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 // Real Pi smoke tests, opt-in to keep the package's tests usable without Pi.
 const integration = process.env.PI_TEMP_INTEGRATION === '1';
@@ -64,10 +64,20 @@ for (const flag of [false, true]) {
     const header = JSON.parse((await readFile(state.sessionFile, 'utf8')).split('\n')[0]);
     assert.ok(header.cwd.startsWith(rpc.root + '/'));
     assert.match(header.cwd.slice(rpc.root.length), /^\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/);
+    assert.equal(dirname(state.sessionFile), join(header.cwd, '.pi', 'sessions'));
     assert.equal(state.messageCount, 0);
     const result = await rpc.request('bash', { command: 'pwd' });
     assert.equal(await realpath(result.output.trim()), await realpath(header.cwd));
+    // The opened session must continue persisting inside the workspace.
+    assert.ok((await readFile(state.sessionFile, 'utf8')).includes('pwd'));
+    await rpc.request('new_session');
+    const next = await rpc.request('get_state');
+    assert.notEqual(next.sessionId, state.sessionId);
+    assert.equal(dirname(next.sessionFile), join(header.cwd, '.pi', 'sessions'));
     assert.equal(rpc.events.filter((event) => event.type === 'extension_error').length, 0);
+    // Removing only this isolated workspace also removes its stored history.
+    await rm(header.cwd, { recursive: true });
+    await assert.rejects(access(state.sessionFile));
   });
 }
 
