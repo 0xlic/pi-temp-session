@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createDirectory, loadConfig, normalizeRoot, saveConfig, startupConflict, timestampParts, validateRoot } from '../lib.mjs';
+import { createDirectory, startupConflict, timestampParts, validateRoot } from '../lib.mjs';
 
 async function temporary(t) {
   const path = await mkdtemp(join(tmpdir(), 'pi-temp-test-'));
@@ -11,25 +11,13 @@ async function temporary(t) {
   return path;
 }
 
-test('root has no default; expands home and relative paths', () => {
-  assert.throws(() => normalizeRoot(' ', '/work'));
-  assert.equal(normalizeRoot('~/scratch', '/work', '/home/me'), '/home/me/scratch');
-  assert.equal(normalizeRoot('scratch', '/work'), '/work/scratch');
-  assert.throws(() => normalizeRoot('~someone/scratch', '/work'));
-});
-
-test('config is persistent, replaceable and missing config has no default', async (t) => {
+test('creates a missing agent temp-sessions root using native paths', async (t) => {
   const dir = await temporary(t);
-  const path = join(dir, 'agent', 'temp-session.json');
-  assert.equal(await loadConfig(path), undefined);
-  await saveConfig(path, dir);
-  assert.equal((await loadConfig(path)).root, dir);
-  await saveConfig(path, join(dir, 'other'));
-  assert.equal((await loadConfig(path)).root, join(dir, 'other'));
-  await writeFile(path, '{}');
-  await assert.rejects(loadConfig(path), /配置无效/);
-  await writeFile(path, 'broken');
-  await assert.rejects(loadConfig(path));
+  const root = join(dir, '.pi', 'agent', 'temp-sessions');
+  await validateRoot(root);
+  const path = await createDirectory(root, { now: () => new Date(2026, 0, 1, 12, 0, 0) });
+  assert.equal(path, join(root, '2026-01-01_12-00-00'));
+  assert.doesNotMatch('2026-01-01_12-00-00', /[<>:"/\\|?*]/);
 });
 
 test('uses local timestamp, waits at collision and handles midnight', async (t) => {

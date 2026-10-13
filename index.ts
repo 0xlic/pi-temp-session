@@ -1,10 +1,10 @@
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { rm, rmdir } from "node:fs/promises";
-import { getAgentDir, SessionManager, type ExtensionAPI, type ExtensionContext, type ExtensionCommandContext, type InputEvent } from "@earendil-works/pi-coding-agent";
-import { createDirectory, loadConfig, materializeSession, normalizeRoot, saveConfig, startupConflict, validateRoot } from "./lib.mjs";
+import { getAgentDir, SessionManager, type ExtensionAPI, type ExtensionCommandContext, type InputEvent } from "@earendil-works/pi-coding-agent";
+import { cleanupRanges, createDirectory, executeCleanup, materializeSession, planCleanup, startupConflict, validateRoot } from "./lib.mjs";
 
 export default function tempSession(pi: ExtensionAPI) {
-  const configPath = join(getAgentDir(), "temp-session.json");
+  const root = join(getAgentDir(), "temp-sessions");
   let busy = false;
   let startupPending = false;
   let startupTimer: ReturnType<typeof setTimeout> | undefined;
@@ -16,23 +16,38 @@ export default function tempSession(pi: ExtensionAPI) {
     default: false,
   });
 
-  async function configure(ctx: ExtensionContext): Promise<string | undefined> {
-    if (!ctx.hasUI) throw new Error("请先在交互模式运行 /temp-session config 配置根目录。");
-    while (true) {
-      const input = await ctx.ui.input("Temp Session：输入根目录（必填；Esc 取消）");
-      if (input === undefined) {
-        ctx.ui.notify("已取消配置，保留原会话。", "info");
-        return undefined;
-      }
-      try {
-        const root = normalizeRoot(input, ctx.cwd);
-        await validateRoot(root);
-        await saveConfig(configPath, root);
-        ctx.ui.notify(`根目录已保存：${root}`, "info");
-        return root;
-      } catch (error) {
-        ctx.ui.notify(String(error), "error");
-      }
+  async function clean(ctx: ExtensionCommandContext) {
+    if (!ctx.hasUI) throw new Error("清理需要交互界面，请运行 /temp-session clean。");
+    const selected = await ctx.ui.select("清理哪些临时会话？（按工作区创建时间）", cleanupRanges.map((range) => range.label));
+    if (selected === undefined) return;
+    const range = cleanupRanges.find((range) => range.label === selected);
+    if (!range) return;
+    const plan = await planCleanup(root, {
+      days: range.days,
+      cwd: ctx.cwd,
+      sessionFile: ctx.sessionManager.getSessionFile(),
+    });
+    const skipped = plan.skippedActive ? `当前会话所在的 ${plan.skippedActive} 个工作区已跳过。` : "";
+    if (!plan.directories.length) {
+      ctx.ui.notify(`没有可清理的临时会话。${skipped}`, "info");
+      return;
+    }
+    const preview = plan.directories.slice(0, 10).map((directory) => basename(directory.path)).join("\n");
+    const more = plan.directories.length > 10 ? `\n……另有 ${plan.directories.length - 10} 个` : "";
+    const confirmed = await ctx.ui.confirm("确认删除临时会话？", [
+      `范围：${range.label}；共 ${plan.directories.length} 个工作区。`,
+      `根目录：${root}`, preview + more, skipped,
+      "工作区所有文件及其中的会话记录将永久删除，不可恢复。",
+      "无法检测其他 Pi 进程是否正在使用这些工作区，请先关闭相关会话。",
+    ].filter(Boolean).join("\n"));
+    if (!confirmed) {
+      ctx.ui.notify("已取消清理。", "info");
+      return;
+    }
+    const result = await executeCleanup(plan);
+    ctx.ui.notify(`已清理 ${result.deleted} 个临时工作区。${skipped}`, "info");
+    if (result.failures.length) {
+      ctx.ui.notify(`有 ${result.failures.length} 个目录未能清理：\n${result.failures.map((failure) => `${failure.path}: ${failure.error}`).join("\n")}`, "warning");
     }
   }
 
@@ -42,8 +57,8 @@ export default function tempSession(pi: ExtensionAPI) {
       return;
     }
     const command = args.trim();
-    if (command && command !== "config") {
-      ctx.ui.notify("用法：/temp-session 或 /temp-session config", "error");
+    if (command && command !== "clean") {
+      ctx.ui.notify(`无需配置根目录，固定使用 ${root}。用法：/temp-session 或 /temp-session clean`, "error");
       return;
     }
     busy = true;
@@ -55,19 +70,11 @@ export default function tempSession(pi: ExtensionAPI) {
     // Keep the notifier only for pre-replacement errors. Once switched, use the
     // fresh context in withSession; the original ctx and pi become invalid.
     try {
-      if (command === "config") {
-        await configure(ctx);
-        return;
-      }
       await ctx.waitForIdle();
-      let root: string | undefined;
-      try { root = (await loadConfig(configPath))?.root; }
-      catch (error) {
-        ctx.ui.notify(`无法读取配置：${String(error)}`, "error");
+      if (command === "clean") {
+        await clean(ctx);
         return;
       }
-      root ??= await configure(ctx);
-      if (!root) return;
       await validateRoot(root);
       directory = await createDirectory(root);
       sessionDir = join(directory, ".pi", "sessions");
@@ -113,8 +120,8 @@ export default function tempSession(pi: ExtensionAPI) {
   }
 
   pi.registerCommand("temp-session", {
-    description: "Create and switch to a temporary session; config: change root directory",
-    getArgumentCompletions: (prefix) => "config".startsWith(prefix) ? [{ value: "config", label: "config — 配置根目录" }] : null,
+    description: "Create a temporary session; clean: delete temporary workspaces and history",
+    getArgumentCompletions: (prefix) => "clean".startsWith(prefix) ? [{ value: "clean", label: "clean — 清理临时会话" }] : null,
     handler: run,
   });
 
