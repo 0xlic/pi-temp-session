@@ -63,7 +63,7 @@ for (const flag of [false, true]) {
     const state = await rpc.request('get_state');
     const header = JSON.parse((await readFile(state.sessionFile, 'utf8')).split('\n')[0]);
     assert.ok(header.cwd.startsWith(rpc.root + '/'));
-    assert.match(header.cwd.slice(rpc.root.length), /^\/\d{4}-\d{2}-\d{2}\/\d{2}-\d{2}-\d{2}$/);
+    assert.match(header.cwd.slice(rpc.root.length), /^\/\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2}$/);
     assert.equal(state.messageCount, 0);
     const result = await rpc.request('bash', { command: 'pwd' });
     assert.equal(await realpath(result.output.trim()), await realpath(header.cwd));

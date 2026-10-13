@@ -52,9 +52,8 @@ export async function createDirectory(root, { now = () => new Date(), sleep = (m
   while (true) {
     const date = now();
     const { day, time } = timestampParts(date);
-    const parent = join(root, day);
-    const directory = join(parent, time);
-    await mkdir(parent, { recursive: true });
+    const directory = join(root, `${day}_${time}`);
+    await mkdir(root, { recursive: true });
     try { await mkdir(directory); return directory; }
     catch (error) {
       if (error.code !== 'EEXIST') throw error;

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createDirectory, loadConfig, normalizeRoot, saveConfig, startupConflict, timestampParts, validateRoot } from '../lib.mjs';
@@ -36,14 +36,15 @@ test('uses local timestamp, waits at collision and handles midnight', async (t) 
   const root = await temporary(t);
   let date = new Date(2026, 0, 1, 23, 59, 59, 200);
   assert.deepEqual(timestampParts(date), { day: '2026-01-01', time: '23-59-59' });
-  assert.equal(await createDirectory(root, { now: () => date }), join(root, '2026-01-01', '23-59-59'));
+  assert.equal(await createDirectory(root, { now: () => date }), join(root, '2026-01-01_23-59-59'));
   let waits = 0;
   const path = await createDirectory(root, {
     now: () => date,
     sleep: async (ms) => { assert.equal(ms, 800); waits++; date = new Date(2026, 0, 2, 0, 0, 0); },
   });
   assert.equal(waits, 1);
-  assert.equal(path, join(root, '2026-01-02', '00-00-00'));
+  assert.equal(path, join(root, '2026-01-02_00-00-00'));
+  assert.deepEqual((await readdir(root)).sort(), ['2026-01-01_23-59-59', '2026-01-02_00-00-00']);
 });
 
 test('same-named file fails immediately; invalid root fails', async (t) => {
