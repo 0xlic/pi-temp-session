@@ -66,3 +66,12 @@ test('startup rejects session selection but ignores prompt text after --', () =>
   assert.equal(startupConflict(['--t', '-c']), '-c');
   assert.equal(startupConflict(['--t', '--', '--session']), undefined);
 });
+
+test('pi-go startup takes precedence over automatic and explicit temp sessions', () => {
+  assert.equal(startupConflict(['--g']), '--g');
+  assert.equal(startupConflict(['--g', '--t']), '--g');
+  assert.equal(startupConflict(['--t', '--g']), '--g');
+  assert.equal(startupConflict(['--g=true']), '--g=true');
+  assert.equal(startupConflict(['--', '--g']), undefined);
+  assert.equal(startupConflict(['--g-other']), undefined);
+});

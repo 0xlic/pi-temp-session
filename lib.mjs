@@ -127,6 +127,6 @@ export async function isHomeDirectory(cwd, home) {
 export function startupConflict(argv) {
   const end = argv.indexOf('--');
   const options = end < 0 ? argv : argv.slice(0, end);
-  const conflicts = ['--continue', '-c', '--resume', '-r', '--session', '--session-id', '--fork', '--no-session'];
+  const conflicts = ['--continue', '-c', '--resume', '-r', '--session', '--session-id', '--fork', '--no-session', '--g'];
   return options.find((arg) => conflicts.some((flag) => arg === flag || arg.startsWith(`${flag}=`)));
 }
