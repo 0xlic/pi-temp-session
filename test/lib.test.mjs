@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createDirectory, startupConflict, timestampParts, validateRoot } from '../lib.mjs';
+import { createDirectory, isHomeDirectory, startupConflict, timestampParts, validateRoot } from '../lib.mjs';
 
 async function temporary(t) {
   const path = await mkdtemp(join(tmpdir(), 'pi-temp-test-'));
@@ -44,6 +44,21 @@ test('same-named file fails immediately; invalid root fails', async (t) => {
   await assert.rejects(createDirectory(root, { now, sleep: () => { throw new Error('must not wait'); } }), /同名文件/);
   await assert.rejects(validateRoot(directory));
   assert.equal(await readFile(directory, 'utf8'), 'not a directory');
+});
+
+test('home detection matches only home itself, including canonical aliases', async (t) => {
+  const root = await temporary(t);
+  const home = join(root, 'home');
+  const project = join(home, 'project');
+  await mkdir(project, { recursive: true });
+  assert.equal(await isHomeDirectory(home, home), true);
+  assert.equal(await isHomeDirectory(join(home, '.'), home), true);
+  assert.equal(await isHomeDirectory(project, home), false);
+  assert.equal(await isHomeDirectory(root, home), false);
+  assert.equal(await isHomeDirectory(join(root, 'home-other'), home), false);
+  const alias = join(root, 'alias');
+  await symlink(home, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  assert.equal(await isHomeDirectory(alias, home), true);
 });
 
 test('startup rejects session selection but ignores prompt text after --', () => {

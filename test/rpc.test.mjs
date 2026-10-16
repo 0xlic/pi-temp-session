@@ -7,15 +7,15 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 // Real Pi smoke tests, opt-in to keep the package's tests usable without Pi.
 const integration = process.env.PI_TEMP_INTEGRATION === '1';
-async function launch(t, { flag = false, legacyConfig } = {}) {
+async function launch(t, { flag = false, legacyConfig, home = false, args = [] } = {}) {
   const sandbox = await mkdtemp(join(tmpdir(), 'pi-temp-rpc-'));
   const agent = join(sandbox, 'agent');
   const root = join(agent, 'pi-temp-sessions');
   await mkdir(agent);
   if (legacyConfig !== undefined) await writeFile(join(agent, 'temp-session.json'), legacyConfig);
-  const child = spawn(process.env.PI_TEST_CLI || 'pi', ['--offline', '-ne', '-e', resolve('index.ts'), '--mode', 'rpc', ...(flag ? ['--t'] : [])], {
+  const child = spawn(process.env.PI_TEST_CLI || 'pi', ['--offline', '-ne', '-e', resolve('index.ts'), '--mode', 'rpc', ...(flag ? ['--t'] : []), ...args], {
     cwd: sandbox,
-    env: { ...process.env, PI_CODING_AGENT_DIR: agent },
+    env: { ...process.env, ...(home ? { HOME: sandbox, USERPROFILE: sandbox } : {}), PI_CODING_AGENT_DIR: agent },
     stdio: ['pipe', 'pipe', 'pipe'],
   });
   t.after(async () => {
@@ -55,10 +55,10 @@ async function launch(t, { flag = false, legacyConfig } = {}) {
   return { root, agent, events, wait, send, request };
 }
 
-for (const flag of [false, true]) {
-  test(`real RPC: ${flag ? '--t' : '/temp-session'} rebuilds cwd and keeps history empty`, { skip: !integration, timeout: 25000 }, async (t) => {
-    const rpc = await launch(t, { flag });
-    if (!flag) await rpc.request('prompt', { message: '/temp-session' });
+for (const mode of ['command', 'flag', 'home']) {
+  test(`real RPC: ${mode} rebuilds cwd and keeps history empty`, { skip: !integration, timeout: 25000 }, async (t) => {
+    const rpc = await launch(t, { flag: mode === 'flag', home: mode === 'home' });
+    if (mode === 'command') await rpc.request('prompt', { message: '/temp-session' });
     await rpc.wait((event) => event.type === 'extension_ui_request' && event.message?.startsWith('已切换到：'));
     const state = await rpc.request('get_state');
     const header = JSON.parse((await readFile(state.sessionFile, 'utf8')).split('\n')[0]);
@@ -82,6 +82,15 @@ for (const flag of [false, true]) {
     await assert.rejects(access(state.sessionFile));
   });
 }
+
+test('real RPC: home startup respects explicit session options', { skip: !integration, timeout: 25000 }, async (t) => {
+  const rpc = await launch(t, { home: true, args: ['--no-session'] });
+  const initial = await rpc.request('get_state');
+  // A second round trip lets any delayed startup command finish.
+  assert.equal((await rpc.request('get_state')).sessionId, initial.sessionId);
+  await assert.rejects(access(rpc.root));
+  assert.equal(rpc.events.some((event) => event.message?.startsWith('已切换到：')), false);
+});
 
 test('real RPC: obsolete config is ignored and preserved, even if malformed', { skip: !integration, timeout: 25000 }, async (t) => {
   const rpc = await launch(t, { flag: true, legacyConfig: 'obsolete invalid JSON' });

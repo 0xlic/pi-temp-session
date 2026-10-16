@@ -118,6 +118,12 @@ export async function executeCleanup(plan) {
   return { deleted, failures };
 }
 
+// Compare canonical paths so a symlink to the home directory is protected too.
+// Equality is intentional: projects inside home must not trigger this behavior.
+export async function isHomeDirectory(cwd, home) {
+  return await canonicalPath(cwd) === await canonicalPath(home);
+}
+
 export function startupConflict(argv) {
   const end = argv.indexOf('--');
   const options = end < 0 ? argv : argv.slice(0, end);

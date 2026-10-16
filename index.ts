@@ -1,7 +1,8 @@
 import { basename, join } from "node:path";
+import { homedir } from "node:os";
 import { rm, rmdir } from "node:fs/promises";
 import { getAgentDir, SessionManager, type ExtensionAPI, type ExtensionCommandContext, type InputEvent } from "@earendil-works/pi-coding-agent";
-import { cleanupRanges, createDirectory, executeCleanup, materializeSession, planCleanup, startupConflict, validateRoot } from "./lib.mjs";
+import { cleanupRanges, createDirectory, executeCleanup, isHomeDirectory, materializeSession, planCleanup, startupConflict, validateRoot } from "./lib.mjs";
 
 export default function tempSession(pi: ExtensionAPI) {
   const root = join(getAgentDir(), "pi-temp-sessions");
@@ -132,10 +133,17 @@ export default function tempSession(pi: ExtensionAPI) {
     return { action: "handled" };
   });
 
-  pi.on("session_start", (event, ctx) => {
-    if (event.reason !== "startup" || !pi.getFlag("t")) return;
+  pi.on("session_start", async (event, ctx) => {
+    if (event.reason !== "startup") return;
+    const explicit = Boolean(pi.getFlag("t"));
     const conflict = startupConflict(process.argv.slice(2));
-    if (conflict) throw new Error(`--t 不能与 ${conflict} 同时使用。`);
+    if (explicit && conflict) throw new Error(`--t 不能与 ${conflict} 同时使用。`);
+    // Explicit session selection wins over the home-directory default. Reloads,
+    // /new and replacement sessions must never trigger another automatic switch.
+    if (!explicit) {
+      if (conflict || (ctx.mode !== "tui" && ctx.mode !== "rpc")) return;
+      if (!(await isHomeDirectory(ctx.cwd, homedir()))) return;
+    }
     // Session replacement is command-only. Dispatch after session_start returns,
     // not while Pi is awaiting lifecycle handlers during runtime initialization.
     if (ctx.mode !== "tui" && ctx.mode !== "rpc") {
