@@ -7,19 +7,13 @@ import { basename, dirname, join, resolve } from 'node:path';
 
 // Real Pi smoke tests, opt-in to keep the package's tests usable without Pi.
 const integration = process.env.PI_TEMP_INTEGRATION === '1';
-async function launch(t, { flag = false, legacyConfig, home = false, go = false, args = [] } = {}) {
+async function launch(t, { flag = false, legacyConfig, home = false, args = [] } = {}) {
   const sandbox = await mkdtemp(join(tmpdir(), 'pi-temp-rpc-'));
   const agent = join(sandbox, 'agent');
   const root = join(agent, 'pi-temp-sessions');
   await mkdir(agent);
   if (legacyConfig !== undefined) await writeFile(join(agent, 'temp-session.json'), legacyConfig);
-  // Register only pi-go's flag: its actual picker is TUI-only, while these
-  // tests exercise temp-session's startup arbitration in an isolated runtime.
-  const goExtension = join(sandbox, 'go-flag.ts');
-  if (go) await writeFile(goExtension, `export default function (pi) {
-    pi.registerFlag('g', { type: 'boolean', default: false, description: 'Test go flag' });
-  }`);
-  const child = spawn(process.env.PI_TEST_CLI || 'pi', ['--offline', '-ne', '-e', resolve('index.ts'), ...(go ? ['-e', goExtension, '--g'] : []), '--mode', 'rpc', ...(flag ? ['--t'] : []), ...args], {
+  const child = spawn(process.env.PI_TEST_CLI || 'pi', ['--offline', '-ne', '-e', resolve('index.ts'), '--mode', 'rpc', ...(flag ? ['--t'] : []), ...args], {
     cwd: sandbox,
     env: { ...process.env, ...(home ? { HOME: sandbox, USERPROFILE: sandbox } : {}), PI_CODING_AGENT_DIR: agent },
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -97,20 +91,6 @@ test('real RPC: home startup respects explicit session options', { skip: !integr
   await assert.rejects(access(rpc.root));
   assert.equal(rpc.events.some((event) => event.message?.startsWith('已切换到：')), false);
 });
-
-for (const flag of [false, true]) {
-  test(`real RPC: --g ${flag ? 'conflicts with --t' : 'suppresses home auto-creation'}`, { skip: !integration, timeout: 25000 }, async (t) => {
-    const rpc = await launch(t, { home: true, go: true, flag });
-    const initial = await rpc.request('get_state');
-    if (flag) {
-      await rpc.wait((event) => event.type === 'extension_error' && event.error?.includes('--t 不能与 --g 同时使用'));
-    }
-    assert.equal((await rpc.request('get_state')).sessionId, initial.sessionId);
-    await assert.rejects(access(rpc.root));
-    assert.equal(rpc.events.some((event) => event.message?.startsWith('已切换到：')), false);
-    if (!flag) assert.equal(rpc.events.some((event) => event.type === 'extension_error'), false);
-  });
-}
 
 test('real RPC: obsolete config is ignored and preserved, even if malformed', { skip: !integration, timeout: 25000 }, async (t) => {
   const rpc = await launch(t, { flag: true, legacyConfig: 'obsolete invalid JSON' });

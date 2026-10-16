@@ -138,9 +138,8 @@ export default function tempSession(pi: ExtensionAPI) {
     const explicit = Boolean(pi.getFlag("t"));
     const conflict = startupConflict(process.argv.slice(2));
     if (explicit && conflict) throw new Error(`--t 不能与 ${conflict} 同时使用。`);
-    // Explicit session selection (including pi-go's --g) wins over the home
-    // default: concurrent startup commands could invalidate each other's ctx.
-    // Reloads, /new and replacements must never trigger an automatic switch.
+    // Explicit session selection wins over the home-directory default. Reloads,
+    // /new and replacement sessions must never trigger another automatic switch.
     if (!explicit) {
       if (conflict || (ctx.mode !== "tui" && ctx.mode !== "rpc")) return;
       if (!(await isHomeDirectory(ctx.cwd, homedir()))) return;
